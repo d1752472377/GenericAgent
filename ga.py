@@ -26,7 +26,10 @@ def code_run(code, code_type="python", timeout=60, cwd=None, code_cwd=None, stop
         tmp_file.close()
         cmd = [sys.executable, "-X", "utf8", "-u", tmp_path]   
     elif code_type in ["powershell", "bash", "sh", "shell", "ps1", "pwsh"]:
-        if os.name == 'nt': cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", code]
+        if os.name == 'nt':
+            # 强制 PS 出口为 UTF-8，避免中文/emoji 经默认 GBK/ASCII 编码丢失（如 ✓→?）
+            ps_prelude = "$OutputEncoding=[System.Text.UTF8Encoding]::new();[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new();"
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_prelude + code]
         else: cmd = ["bash", "-c", code]
     else:
         return {"status": "error", "msg": f"不支持的类型: {code_type}"}
