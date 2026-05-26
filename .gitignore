@@ -66,6 +66,9 @@ memory/L4_raw_sessions/*
 # Subagent SOP
 !memory/subagent_sop.md
 
+# Incubator SOP
+!memory/incubator_sop.md
+
 # Supervisor SOP
 !memory/supervisor_sop.md
 
@@ -77,6 +80,9 @@ memory/L4_raw_sessions/*
 
 # Goal Hive Mode SOP
 !memory/goal_hive_sop.md
+
+# Morphling SOP
+!memory/morphling_sop.md
 
 # Skill Search SOP
 !memory/skill_search/
