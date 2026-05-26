@@ -317,7 +317,24 @@ def on_message(bot, msg):
     media_paths = _dl_media(msg.get('item_list', []))
     if not text and not media_paths: return
     if media_paths:
-        text = (text + '\n' if text else '') + '\n'.join(f'[用户发送文件: {p}]' for p in media_paths)
+        # 语音 .silk 在此就地转文字 (Groq → codex-asr 降级), 文件路径不再投给模型
+        from wxasr import silk_to_text
+        voice_texts, non_voice = [], []
+        for p in media_paths:
+            if p.endswith('.silk'):
+                try:
+                    vt = silk_to_text(p)
+                    voice_texts.append(vt)
+                    print(f'[WX] 语音转文字: {vt[:80]}', file=sys.__stdout__)
+                except Exception as e:
+                    print(f'[WX] 语音识别失败 {p}: {e}', file=sys.__stdout__)
+                    non_voice.append(p)  # 失败时仍把 silk 路径交给模型,避免丢消息
+            else:
+                non_voice.append(p)
+        if voice_texts:
+            text = (text + '\n' if text else '') + '\n'.join(f'[用户语音] {t}' for t in voice_texts)
+        if non_voice:
+            text = (text + '\n' if text else '') + '\n'.join(f'[用户发送文件: {p}]' for p in non_voice)
     print(f'[WX] 收到: {text[:80]}', file=sys.__stdout__)
 
     # Commands

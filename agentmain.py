@@ -123,6 +123,41 @@ class GenericAgent:
             return None
         if raw_query.strip() == '/resume':
             return r'帮我看看最近有哪些会话可以恢复。读model_responses/目录，按修改时间取最近10个文件，从每个文件里找最后一个<history>...</history>块，用一句话总结每个会话在聊什么，列表给我选。注意读文件后要把字面的\n替换成真换行才能正确匹配。'
+        if raw_query.strip() in ('/llms', '/llm', '/models', '/model'):
+            try:
+                lines = ['📋 可用模型 (▶=当前)：']
+                for i, name, cur in self.list_llms():
+                    lines.append(f"{'▶' if cur else '  '} [{i}] {name}")
+                lines.append('\n切换：`/llm <序号>` 或 `/llm <名称片段>`')
+                display_queue.put({'done': '\n'.join(lines), 'source': 'system'})
+            except Exception as e:
+                display_queue.put({'done': f"❌ 列模型失败: {e}", 'source': 'system'})
+            return None
+        if _lm := re.match(r'/(?:llm|model)\s+(.+?)\s*$', raw_query.strip()):
+            arg = _lm.group(1).strip()
+            try:
+                llms = self.list_llms()
+                target = None
+                if arg.isdigit():
+                    target = int(arg)
+                else:
+                    al = arg.lower()
+                    matches = [i for i, name, _ in llms if al in name.lower()]
+                    if len(matches) == 1: target = matches[0]
+                    elif len(matches) > 1:
+                        display_queue.put({'done': f"❓ 多个匹配 '{arg}'：{[llms[i][1] for i in matches]}，请用序号。", 'source': 'system'})
+                        return None
+                    else:
+                        display_queue.put({'done': f"❌ 未找到匹配 '{arg}' 的模型。用 /llms 查看列表。", 'source': 'system'})
+                        return None
+                if not (0 <= target < len(llms)):
+                    display_queue.put({'done': f"❌ 序号越界：{target} (有效 0..{len(llms)-1})", 'source': 'system'})
+                    return None
+                self.next_llm(target)
+                display_queue.put({'done': f"✅ 已切换到 [{self.llm_no}] {self.get_llm_name()} (model={self.get_llm_name(model=True)})", 'source': 'system'})
+            except Exception as e:
+                display_queue.put({'done': f"❌ 切换失败: {e}", 'source': 'system'})
+            return None
         return raw_query
 
     def run(self):
