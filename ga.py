@@ -1,7 +1,7 @@
 import sys, os, re, json, time, threading, importlib
 from datetime import datetime
 from pathlib import Path
-import tempfile, traceback, subprocess, itertools, collections, difflib
+import tempfile, traceback, subprocess, itertools, collections, difflib, shutil
 if sys.stdout is None: sys.stdout = open(os.devnull, "w")
 if sys.stderr is None: sys.stderr = open(os.devnull, "w")
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -27,9 +27,10 @@ def code_run(code, code_type="python", timeout=60, cwd=None, code_cwd=None, stop
         cmd = [sys.executable, "-X", "utf8", "-u", tmp_path]   
     elif code_type in ["powershell", "bash", "sh", "shell", "ps1", "pwsh"]:
         if os.name == 'nt':
+            _ps = "pwsh" if shutil.which("pwsh") else "powershell"
             # 强制 PS 出口为 UTF-8，避免中文/emoji 经默认 GBK/ASCII 编码丢失（如 ✓→?）
             ps_prelude = "$OutputEncoding=[System.Text.UTF8Encoding]::new();[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new();"
-            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_prelude + code]
+            cmd = [_ps, "-NoProfile", "-NonInteractive", "-Command", ps_prelude + code]
         else: cmd = ["bash", "-c", code]
     else:
         return {"status": "error", "msg": f"不支持的类型: {code_type}"}
@@ -576,7 +577,7 @@ class GenericAgentHandler(BaseHandler):
         injprompt = consume_file(self.parent.task_dir, '_intervene')
         if injkeyinfo: self.working['key_info'] = self.working.get('key_info', '') + f"\n[MASTER] {injkeyinfo}"
         if injprompt: next_prompt += f"\n\n[MASTER] {injprompt}\n"
-        for hook in getattr(self.parent, '_turn_end_hooks', {}).values(): hook(locals())  # current readonly
+        for hook in list(getattr(self.parent, '_turn_end_hooks', {}).values()): hook(locals())  # current readonly
         return next_prompt
 
 def get_global_memory():
